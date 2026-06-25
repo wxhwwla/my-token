@@ -1,0 +1,25 @@
+# 环境变量（含账号密码）
+.env
+
+# 输出数据
+output-history/
+
+# 错误截图和页面源码
+*.png
+*.html
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# 系统
+Thumbs.db
+.DS_Store
