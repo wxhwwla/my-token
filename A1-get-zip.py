@@ -152,9 +152,10 @@ async def download(page: Page, path: str):
     download = await download_info.value
 
     # 3. 保存文件
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     Path(path).mkdir(parents=True, exist_ok=True)
-    await download.save_as(str(Path(path) / f"usage_{y}_{m:02d}.zip"))
-    print(f"{y}年{m}月 导出完成")
+    await download.save_as(str(Path(path) / f"usage_{timestamp}.zip"))
+    print(f"{timestamp} 导出完成")
 
 
 async def export_deepseek_usage():
@@ -218,3 +219,4 @@ if __name__ == "__main__":
         print(f"\n💥 脚本异常退出: {e}")
         traceback.print_exc()
 
+     
