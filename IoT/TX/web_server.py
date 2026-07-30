@@ -1,5 +1,5 @@
 import socket
-
+from boot import hello
 def start_server():
     addr = ("0.0.0.0", 80)
     # 默认监听所有可用的网络接口，端口号为80
@@ -23,9 +23,6 @@ def start_server():
         request = conn.recv(1024)
         print("收到请求:", request)
         
-        with open("hello.html", "r") as f:
-            hello = f.read()
-
         response = ("HTTP/1.1 200 OK\r\n"
                     "Content-Type: text/html\r\n"
                     "Connection: close\r\n"

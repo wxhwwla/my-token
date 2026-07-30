@@ -1,10 +1,9 @@
 import network
 import time
+from boot import wlan
 from config import wifi_name, wifi_password
 
 
-wlan = network.WLAN(network.STA_IF)
-# 板子就是wlan这个对象，他作为STA模式，也就是请求端的接口，连接wifi
 wlan.active(True)
 # 给板子WiFi通电
 wlan.connect(wifi_name, wifi_password)
