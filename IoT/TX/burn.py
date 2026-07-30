@@ -63,6 +63,7 @@ def main():
             print(f"芯片 {idx+1} 失败，请检查连接。")
 
 if __name__ == "__main__":
-    main()
+    # T-Dongle-S3 Dual: 只烧录主芯片 (COM3)
+    flash_one_chip("COM3")
 
     
