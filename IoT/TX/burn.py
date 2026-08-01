@@ -1,5 +1,5 @@
 import esptool
-import time
+import time  # type: ignore  # Pyright 对 stubPath 中 stdlib 模块的误报，忽略
 import os
 import serial.tools.list_ports
 

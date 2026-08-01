@@ -1,5 +1,7 @@
-import socket
+import asyncio
 from boot import hello
+
+"""
 def start_server():
     addr = ("0.0.0.0", 80)
     # 默认监听所有可用的网络接口，端口号为80
@@ -32,3 +34,48 @@ def start_server():
         conn.close()
 
 start_server()
+"""
+
+
+async def read_small(reader, writer):
+    """
+    用来读取客户端请求的函数
+    可以返回任何数据
+    不接受上传文件等大数据
+    """
+    data = await reader.read(4096)
+    # 读取客户端请求数据，最大读取4096字节
+    segments = data.split(b"\r\n")
+    # 将请求数据按行分割，得到一个字节串列表
+    request_line = segments[0]
+    # 取出请求行，也就是列表的第一个元素
+    path = request_line.split(b" ")[1]
+    # 将请求行按空格分割，取出第二个元素，也就是请求的路径
+
+    response = (b"HTTP/1.1 200 OK\r\n"           # 状态行：版本 + 状态码 + 说明
+                b"Content-Type: text/html\r\n"    # 响应头：告诉浏览器这是网页
+                b"Connection: close\r\n"          # 处理完就关连接
+                b"\r\n"                           # 空行
+                + hello)                          # 正文
+
+    writer.write(response)
+    await writer.drain()
+    # 返回数据，并且等待确认收到
+    writer.close()
+    await writer.wait_closed()
+    # 关闭连接，等待关闭完成
+
+
+async def main():
+    server = await asyncio.start_server(read_small, "0.0.0.0", 80)
+    print("服务器已启动，等待连接...")
+    await server
+
+
+asyncio.run(main())
+# end of file
+
+
+
+
+

@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
-import sys
+import sys  # type: ignore  # Pyright 对 stubPath 中 stdlib 模块的误报，忽略
 from pathlib import Path
 
 
