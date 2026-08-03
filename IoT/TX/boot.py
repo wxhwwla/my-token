@@ -18,6 +18,11 @@ wlan = network.WLAN(network.STA_IF)
 
 with open("hello.html", "rb") as f:
     hello = f.read()
+
 with open("filemanager.html", "rb") as f:
     filemanager = f.read()
 
+with open("success.html", "rb") as f:
+    success = f.read()
+
+    

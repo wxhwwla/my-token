@@ -1,7 +1,6 @@
 import asyncio
 import os
-from boot import hello
-from boot import filemanager
+from boot import hello, filemanager, success
 """
 def start_server():
     addr = ("0.0.0.0", 80)
@@ -38,6 +37,14 @@ start_server()
 """
 
 
+def format_size(size):
+    if size < 1024:
+        return str(size) + " B"
+    elif size < 1024 * 1024:
+        return "%.1f KB" % (size / 1024)
+    else:
+        return "%.1f MB" % (size / (1024 * 1024))
+
 def get_file():
     rows = []
     files = os.listdir()
@@ -45,8 +52,9 @@ def get_file():
     for f in files:
         size = os.stat(f)[6]
         # 获取文件大小，os.stat() 返回一个元组，索引6是文件大小
-        rows.append(b"<tr><td>%s</td><td>%d</td></tr>" % (f.encode(), size))
-        # 生成一个表格行，包含文件名和文件大小，添加到 rows 列表中
+        rows.append(b"<tr><td>%s</td><td>%s</td><td>%d</td></tr>" 
+                    % (f.encode(), format_size(size).encode(), size))
+        # 生成一个表格行，包含文件名、格式化后的大小和原始大小
         print(f, size)
     page = filemanager.replace(b"__FILES__", b"".join(rows))
     # 将 filemanager.html 中的 __FILES__ 替换为生成的表格行
@@ -68,6 +76,7 @@ async def read_small(reader, writer):
     path = request_line.split(b" ")[1]
     # 将请求行按空格分割，取出第二个元素，也就是请求的路径
 
+
     if path == b"/":
         # 如果请求路径是根目录，就返回 hello 网页
         response = (b"HTTP/1.1 200 OK\r\n"            # 状态行：版本 + 状态码 + 说明
@@ -82,7 +91,32 @@ async def read_small(reader, writer):
                     b"Content-Type: text/html\r\n"    # 响应头：告诉浏览器这是网页
                     b"Connection: close\r\n"          # 处理完就关连接
                     b"\r\n"                           # 空行
-                    + page)                    # 正文
+                    + page)                           # 正文
+    elif path == b"/upload":
+        boundary = data.split(b"boundary=")[1].split(b"\r\n")[0]
+        # 如果请求是上传文件的 POST 请求，boundary 是分隔符，用来分割上传的文件数据
+        parts = data.split(b"--" + boundary)
+        # 将请求数据按 boundary 分割，得到一个列表，每个元素是一个上传的文件数据块
+        header = parts[1].split(b"\r\n\r\n")[0]
+        # 取出上传文件数据块的头部，也就是列表的第一个元素，按两个换行符分割，取出第一个部分
+        filename = header.split(b'filename="')[1].split(b'"')[0]
+        # 取出上传文件的文件名，按 filename=" 分割，取出第二个部分，再按 " 分割，取出第一个部分
+        content = parts[1].split(b"\r\n\r\n")[1]
+        # 取出上传文件数据块的内容，也就是列表的第一个元素，按两个换行符分割，取出第二个部分
+        content = content.split(b"\r\n--" + boundary)[0]
+        # 取出上传文件数据块的内容，按 boundary 分割，取出第一个部分
+        with open(filename, "wb") as f:
+            f.write(content)
+            
+        response = (b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Type: text/html\r\n"
+                    b"Connection: close\r\n"
+                    b"\r\n"
+                    + "<html><body><h1>上传成功: ".encode()
+                    + filename
+                    + b"</h1></body></html>")
+
+        
     else:
         # 如果请求路径不是以上两种，就返回 404 网页
         response = (b"HTTP/1.1 404 Not Found\r\n"     # 状态行：版本 + 状态码 + 说明
