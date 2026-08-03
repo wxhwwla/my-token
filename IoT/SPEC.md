@@ -197,10 +197,15 @@ ESP32 每分钟通过 UDP 广播自己的内网穿透域名（或内网 IP）。
 ```
 
 演进路径：
-1. 当前：单页面 Hello World ✅
-2. 短期：文件管理服务器（上传/删除/文件列表）← 正在进行
+1. 当前：单页面 Hello World ✅（已演进为 asyncio 多路由版）
+2. 短期：文件管理服务器（上传/删除/文件列表）← 进行中（文件列表 ✅，上传/删除未做）
 3. 中期：嵌入 DeepSeek 用量图表
 4. 长期：密码保护、文件缓存优化
+
+**asyncio 实测修正（重要）**：
+- MicroPython v1.29 的 `asyncio.start_server` 协程**只创建服务器就返回**（不挂起），返回的 `Server` 对象**不可 await**（`await server` 报 `TypeError: 'Server' object isn't iterable`）
+- 正确模式：`server = await asyncio.start_server(handler, host, port)` + `while True: await asyncio.sleep(3600)` 保持事件循环（accept 任务由 start_server 内部创建，main 只是"看门人"）
+- `serve_forever` 不存在于 MicroPython 的 Server；官方讨论 #12219 的 `gather(server, other_tasks)` 写法要求 other_tasks 永久挂起，否则 main 结束后事件循环停止、后台任务被杀
 
 ### 9. 数据获取与处理（未开始）
 
@@ -251,6 +256,24 @@ TX/
 3. 插回 USB
 4. 等 2 秒松开
 
+### 13.5 SD 卡挂载（实测确认 2026-08）
+
+**T-Dongle-S3 的 TF 卡槽是 SDMMC 4-bit 模式，必须显式指定引脚**（官方默认配置无效）：
+
+```python
+from machine import SDCard
+import os
+sd = SDCard(slot=0, sck=12, cmd=16, data=(14, 17, 21, 18), width=4)
+os.mount(sd, "/sd")
+```
+
+- 引脚：SCK=GPIO12、CMD=GPIO16、DATA0-3=GPIO14/17/21/18（来源：LILYGO T-Dongle-S3 issue #11）
+- `SDCard()` 默认参数（SDMMC slot 2）对象能创建但 mount 报 `OSError: 16 (ENODEV)`——引脚不对
+- 本固件的 SDCard 不支持 SPI 模式参数（`slot=None` 报 TypeError，SPI 引脚报 ValueError）
+- **MicroPython 的 soft reset 保留 VFS 挂载**——boot.py 每次启动重复挂载已挂载的 `/sd` 报 `EPERM`，挂载前应检查：`if "sd" not in os.listdir("/")`
+- 挂载代码放 boot.py（`try/except` 兜底，没插卡不崩溃），已实测：用户 32GB FAT 卡挂载成功，含 `System Volume Information` + 数据文件
+- 文件列表页 `os.stat()` 对目录返回大小 0（sd 显示 0 属正常）
+
 ## Testing Decisions
 
 ### 测试原则（不变）
@@ -272,7 +295,7 @@ TX/
 | **文件上传功能** | **硬件层** | 上传 .py 文件，验证 ESP32 文件系统上确实多出了文件 |
 | **文件名白名单保护** | **硬件层** | 尝试通过 Web 删除受保护文件，验证被拒绝 |
 | **非白名单文件删除** | **硬件层** | 删除上传的测试文件，验证成功 |
-| **文件列表正确性** | **硬件层** | 对比 Web 显示的文件列表与 `mpremote ls` 的实际输出一致 |
+| **文件列表正确性** | **硬件层** | ✅ 已完成（/filemanager 实测：文件列表 + 大小 + sd 挂载点显示正常） |
 | **UDP 广播收发** | **硬件层** | **验证设备发现功能（新增）** |
 | TF 卡读写 | 硬件层 | 验证文件创建、写入、读取的稳定性 |
 | WiFi 重连 | 硬件层 | 验证断网后自动恢复 |

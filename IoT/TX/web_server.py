@@ -1,6 +1,7 @@
 import asyncio
+import os
 from boot import hello
-
+from boot import filemanager
 """
 def start_server():
     addr = ("0.0.0.0", 80)
@@ -37,10 +38,25 @@ start_server()
 """
 
 
+def get_file():
+    rows = []
+    files = os.listdir()
+    # 遍历当前目录下的所有文件和文件夹
+    for f in files:
+        size = os.stat(f)[6]
+        # 获取文件大小，os.stat() 返回一个元组，索引6是文件大小
+        rows.append(b"<tr><td>%s</td><td>%d</td></tr>" % (f.encode(), size))
+        # 生成一个表格行，包含文件名和文件大小，添加到 rows 列表中
+        print(f, size)
+    page = filemanager.replace(b"__FILES__", b"".join(rows))
+    # 将 filemanager.html 中的 __FILES__ 替换为生成的表格行
+    return page
+
+
 async def read_small(reader, writer):
     """
     用来读取客户端请求的函数
-    可以返回任何数据
+    可以返回任何数据files = os.listdir()
     不接受上传文件等大数据
     """
     data = await reader.read(4096)
@@ -52,12 +68,30 @@ async def read_small(reader, writer):
     path = request_line.split(b" ")[1]
     # 将请求行按空格分割，取出第二个元素，也就是请求的路径
 
-    response = (b"HTTP/1.1 200 OK\r\n"           # 状态行：版本 + 状态码 + 说明
-                b"Content-Type: text/html\r\n"    # 响应头：告诉浏览器这是网页
-                b"Connection: close\r\n"          # 处理完就关连接
-                b"\r\n"                           # 空行
-                + hello)                          # 正文
+    if path == b"/":
+        # 如果请求路径是根目录，就返回 hello 网页
+        response = (b"HTTP/1.1 200 OK\r\n"            # 状态行：版本 + 状态码 + 说明
+                    b"Content-Type: text/html\r\n"    # 响应头：告诉浏览器这是网页
+                    b"Connection: close\r\n"          # 处理完就关连接
+                    b"\r\n"                           # 空行
+                    + hello)                          # 正文
+    elif path == b"/filemanager":
+        page = get_file()
+        # 如果请求路径是 /filemanager，就返回 filemanager 网页
+        response = (b"HTTP/1.1 200 OK\r\n"            # 状态行：版本 + 状态码 + 说明
+                    b"Content-Type: text/html\r\n"    # 响应头：告诉浏览器这是网页
+                    b"Connection: close\r\n"          # 处理完就关连接
+                    b"\r\n"                           # 空行
+                    + page)                    # 正文
+    else:
+        # 如果请求路径不是以上两种，就返回 404 网页
+        response = (b"HTTP/1.1 404 Not Found\r\n"     # 状态行：版本 + 状态码 + 说明
+                    b"Content-Type: text/html\r\n"    # 响应头：告诉浏览器这是网页
+                    b"Connection: close\r\n"          # 处理完就关连接
+                    b"\r\n"                           # 空行
+                    + b"<html><body><h1>404 Not Found</h1></body></html>")  # 正文
 
+        
     writer.write(response)
     await writer.drain()
     # 返回数据，并且等待确认收到
@@ -68,8 +102,11 @@ async def read_small(reader, writer):
 
 async def main():
     server = await asyncio.start_server(read_small, "0.0.0.0", 80)
+    # start_server 协程只创建服务器就返回（实测确认），accept 任务在后台运行，
+    # 所以 main 必须保持事件循环不结束，否则后台任务被一起停掉
     print("服务器已启动，等待连接...")
-    await server
+    while True:
+        await asyncio.sleep(3600)   # 保持事件循环，让后台 accept 任务持续运行
 
 
 asyncio.run(main())
