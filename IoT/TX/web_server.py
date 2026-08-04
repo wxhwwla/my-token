@@ -1,6 +1,6 @@
 import asyncio
-from boot import hello, filemanager, success
-from file_handling import get_file
+from boot import hello
+from file_handling import get_file, upload, delete
 
 
 async def read_server(reader, writer):
@@ -34,30 +34,26 @@ async def read_server(reader, writer):
                     b"\r\n"                           # 空行
                     + page)                           # 正文
     elif path == b"/upload":
-        boundary = data.split(b"boundary=")[1].split(b"\r\n")[0]
-        # 如果请求是上传文件的 POST 请求，boundary 是分隔符，用来分割上传的文件数据
-        parts = data.split(b"--" + boundary)
-        # 将请求数据按 boundary 分割，得到一个列表，每个元素是一个上传的文件数据块
-        header = parts[1].split(b"\r\n\r\n")[0]
-        # 取出上传文件数据块的头部，也就是列表的第一个元素，按两个换行符分割，取出第一个部分
-        filename = header.split(b'filename="')[1].split(b'"')[0]
-        # 取出上传文件的文件名，按 filename=" 分割，取出第二个部分，再按 " 分割，取出第一个部分
-        content = parts[1].split(b"\r\n\r\n")[1]
-        # 取出上传文件数据块的内容，也就是列表的第一个元素，按两个换行符分割，取出第二个部分
-        content = content.split(b"\r\n--" + boundary)[0]
-        # 取出上传文件数据块的内容，按 boundary 分割，取出第一个部分
-        with open(filename, "wb") as f:
-            f.write(content)
-
+        filename = upload(data)
+        # 如果请求路径是 /upload，就处理上传文件，并返回成功网页
         response = (b"HTTP/1.1 200 OK\r\n"
                     b"Content-Type: text/html\r\n"
                     b"Connection: close\r\n"
                     b"\r\n"
-                    + "<html><body><h1>上传成功: ".encode()
+                    + "<html><head><meta charset='utf-8'></head><body><h1>上传成功: ".encode()
                     + filename
                     + b"</h1></body></html>")
+    elif path == b"/delete":
+        result = delete(data)
+        response = (b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Type: text/html\r\n"
+                    b"Connection: close\r\n"
+                    b"\r\n"
+                    + "<html><head><meta charset='utf-8'></head><body><h1>删除结果</h1>".encode()
+                    + result
+                    + b"</body></html>")
 
-        
+
     else:
         # 如果请求路径不是以上两种，就返回 404 网页
         response = (b"HTTP/1.1 404 Not Found\r\n"     # 状态行：版本 + 状态码 + 说明

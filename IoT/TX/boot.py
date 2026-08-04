@@ -22,7 +22,4 @@ with open("hello.html", "rb") as f:
 with open("filemanager.html", "rb") as f:
     filemanager = f.read()
 
-with open("success.html", "rb") as f:
-    success = f.read()
-
     
